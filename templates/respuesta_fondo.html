@@ -1,0 +1,21 @@
+{% extends 'base_isbn.html' %}
+
+{% block content %}
+
+<style>
+    .jumbotron {
+        background-color:transparent !important; 
+    }
+</style>
+
+<div class="jumbotron d-flex align-items-center">
+<div class="container shadow bg-white py-5">
+    {% for item in noJDE %}
+        <p>{{item | safe}}</p>
+    {% endfor %}
+    <br>
+     {{ tab | safe}}
+</div>
+</div>
+
+{% endblock %}

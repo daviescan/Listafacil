@@ -1,0 +1,104 @@
+#!/usr/bin/python3
+from flask import Flask, render_template, request
+import pandas as pd
+import re
+import requests
+from bs4 import BeautifulSoup as bs
+
+app = Flask(__name__)
+
+# Cruza los ISBN con el fondo comercial y devuelve lista los que no aparecen o tienen alternativa
+# Compruba en Imosver si hay nuevo ISBN para las referencias
+def isbnNoEnJD(listaIsbnConsulta, listaIsbnEncontrados):
+    busquedaImosver = 'https://www.imosver.com/es/busqueda/listaLibros.php?tipoBus=full&palabrasBusqueda='
+    resultado = []
+    for isbn in listaIsbnConsulta:
+        try:
+            imosver = requests.get(busquedaImosver + isbn)
+            soup = bs(imosver.content, 'lxml')
+            linkNuevaEdicion = soup.find(class_='nueva_edicion')['href']
+            imosver = requests.get('https://www.imosver.com/' + linkNuevaEdicion)
+            imosver = requests.get('https://www.imosver.com/' + linkNuevaEdicion)
+            soup = bs(imosver.content, 'lxml')
+            nuevoIsbn = soup.select('#summary dd')[4].text
+            if isbn not in listaIsbnEncontrados:
+                resultado.append(isbn + ' - No está en JDE, se sustituye por - ' + nuevoIsbn)
+            else:
+                resultado.append(isbn + ' - Se sustituye por - ' + nuevoIsbn)
+        except:
+            if isbn not in listaIsbnEncontrados:
+                resultado.append(isbn + ' - No está en JDE')
+    return resultado
+
+
+@app.route("/", methods=["POST", "GET"])
+def formulario():
+    fondo = pd.read_csv('g8dqb.csv', sep=';')
+    if request.method == 'POST':
+        cadena = request.form['lista_isbn']
+        codigoJD = request.form['codigoCentro']
+        nombreColegio = request.form['nombreCentro']
+        provincia = request.form['provincia']
+        gestor = request.form['gestor']
+
+        # Extrtrae sólo los ISBN
+        listaIsbnConsulta = re.findall(r'9[—.\-\/ ]?7[—.\-\/ ]?8[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d[—.\-\/ ]?\d', cadena)
+        for i, item in enumerate(listaIsbnConsulta):
+            listaIsbnConsulta[i] = re.sub("[^0-9]", "", item)
+
+        fondo_filtrado = fondo[fondo.loc[:, 'ISBN'].isin(listaIsbnConsulta)]
+
+        filas = fondo_filtrado.ISBN.count()
+
+        codigoJD = [codigoJD for item in range(filas)]
+        nombreColegio = [nombreColegio for item in range(filas)]
+        provincia = [provincia for item in range(filas)]
+        gestor = [gestor for item in range(filas)]
+
+        fondo_filtrado['Código JD'] = codigoJD
+        fondo_filtrado['Centro'] = nombreColegio
+        fondo_filtrado['Provincia'] = provincia
+        fondo_filtrado['Gestor'] = gestor
+
+        fondo_filtrado = fondo_filtrado.loc[:, ['ISBN', \
+                                                'Editorial', \
+                                                'Etapa', \
+                                                'Curso', \
+                                                'Descripcion del Artículo', \
+                                                'Código JD', \
+                                                'Centro', \
+                                                'Provincia', \
+                                                'Gestor', \
+                                                'Comerciable', \
+                                                'Catalogación']]       
+        # Cambia nombre de las columnas
+        fondo_filtrado.columns = ['ISBN', \
+                                  'Editorial', \
+                                  'Etapa', \
+                                  'Curso', \
+                                  'Descripción', \
+                                  'Código JD', \
+                                  'Nombre Colegio', \
+                                  'Provincia', \
+                                  'Gestor', \
+                                  'Comercializable', \
+                                  'Catalogación']
+
+        # Remapea la columna Comercializable
+        comercializableSiNo = lambda x: 'Sí' if x == 'COMERCIALIZABLE' else 'No'
+        fondo_filtrado.loc[:, 'Comercializable'] = fondo_filtrado['Comercializable'].apply(comercializableSiNo)
+
+        listaIsbnEncontrados = fondo_filtrado.loc[:, 'ISBN'].tolist()
+        tabla = fondo_filtrado.to_html(classes="table table-sm table-striped", index=False, justify='center')
+        nojd = isbnNoEnJD(listaIsbnConsulta, listaIsbnEncontrados)
+
+        # Si no hay ISBN válidos, no manda la tabla
+        if not listaIsbnConsulta:
+            tabla = '<h5>Comprueba la lista, no se ha encontrado ningún código ISBN válido...</h5>'
+        return  render_template('respuesta_fondo.html', tab=tabla, noJDE=nojd)
+    else:
+        return render_template('busca_isbn.html')
+
+if __name__ == '__main__':
+    #fondo = pd.read_csv('g8dqb.csv', sep=';')
+    app.run(port='7777', debug = True)

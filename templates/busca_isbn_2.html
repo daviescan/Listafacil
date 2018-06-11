@@ -1,0 +1,56 @@
+{% extends 'base_isbn.html' %}
+
+{% block content %}
+
+<div class="container py-5 ">
+    <form action="/", method=post enctype="multipart/form-data">
+        <div class="form-group">
+          <div class="row">
+            <div class="col">
+              <input type="text" class="form-control shadow" name="codigoCentro" placeholder="Código centro" required>
+            </div>
+            <div class="col">
+              <input type="text" class="form-control shadow" name="nombreCentro" placeholder="Nombre centro" required>
+            </div>
+          </div>       
+          <br>
+          <div class="row">
+            <div class="col">
+              <input type="text" class="form-control shadow" name="provincia" placeholder="Provincia" required>
+            </div>
+            <div class="col">
+              <input type="text" class="form-control shadow" name="gestor" placeholder="Gestor" required>
+            </div>
+          </div>       
+          <br>
+          <textarea id="lista" rows="5" class="form-control shadow" name="lista_isbn", placeholder="Lista ISBN..." required></textarea>
+        </div>
+        <br>
+          <label for="file">Lista en Excel o PDF (No funciona con escaneos)</label>
+          <input classtype="file" name="file" type="file" class="form-control-file" id="file">
+        <br>
+        <button id="generar" type="submit" class="btn btn-secondary shadow" required>Generar tabla</button>
+        <br>
+        <br>
+        <p>¡¡AVISO!! - No intenteis cargar un excel de hoja de pedidos. Aunque esté filtrado, listafacil va a leer todos los ISBN y se va a colgar...</p
+    </form>
+</div>
+
+
+    <script type="text/javascript">
+      //$(document).ready() is cross-browser
+      $(document).ready(function() {
+            $('#generar').on('click', function() {
+            });
+            $('form').submit(function() {
+              $(this).find("button[type='submit']").prop('disabled',true);
+            });
+
+          $('input[type="file"]').change(function(){
+              $("#lista").prop('disabled', true);
+          });
+    });
+
+
+    </script>
+{% endblock %}
