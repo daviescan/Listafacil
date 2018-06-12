@@ -1,0 +1,4 @@
+archivos_antiguos/
+fondo_v2.csv
+app.py.bak
+logs/gunicorn_*
